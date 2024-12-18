@@ -1,2 +1,2 @@
 # HarshilBrindaResume
-Showcasing my programming and coding projects, skills, and experience. 
+All complete programs and projects in Python
