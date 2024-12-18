@@ -1,0 +1,5 @@
+#This code calculates the temperature in Fahrenheit
+
+C = float (input("Enter temperature in Celcius: \n") )
+F = (C * 9/5) + 32
+print (F)
