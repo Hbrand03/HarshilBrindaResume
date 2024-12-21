@@ -1,0 +1,100 @@
+// Harshil Brinda
+// 6.13.2024
+// Lab 2, ECGR 3101
+// YouTube Link: https://youtu.be/hZ1X9baXEK0
+// This program aims to switch and cycle between LED colors red and green.
+// Top concepts include button and LED pin configurations, switch statements, loops.
+
+#include <msp430.h>
+#include <stdbool.h>
+
+// Define LED and Button connections
+#define GREEN_LED_PDIR P1DIR
+#define GREEN_LED_POUT P1OUT
+#define GREEN_LED_BIT BIT0
+
+#define RED_LED_PDIR P1DIR
+#define RED_LED_POUT P1OUT
+#define RED_LED_BIT BIT6
+
+#define BUTTON_PDIR P1DIR
+#define BUTTON_PIN P1IN
+#define BUTTON_POUT P1OUT
+#define BUTTON_PREN P1REN
+#define BUTTON_BIT BIT3
+
+// Function to set the Green LED
+static inline void setGreenLED(bool enable){
+    if(enable) {
+        GREEN_LED_POUT |= GREEN_LED_BIT;
+    } else {
+        GREEN_LED_POUT &= ~GREEN_LED_BIT;
+    }
+}
+
+// Function to set the Red LED
+static inline void setRedLED(bool enable){
+    if(enable) {
+        RED_LED_POUT |= RED_LED_BIT;
+    } else {
+        RED_LED_POUT &= ~RED_LED_BIT;
+    }
+}
+
+// Function to check if the button is pressed
+static inline bool buttonPressed(){
+    return (BUTTON_PIN & BUTTON_BIT) == 0;
+}
+
+// Function to debounce the button press
+static inline bool buttonPressed_Debounced(){
+    if(buttonPressed()){
+        __delay_cycles(10000);  // Short delay for debouncing
+        if(buttonPressed()){
+            return true;
+        }
+    }
+    return false;
+}
+
+// Function to initialize GPIOs
+static inline void init(){
+    WDTCTL = WDTPW | WDTHOLD;   // Stop the watchdog timer
+
+    GREEN_LED_PDIR |= GREEN_LED_BIT; // Set Green LED pin as output
+    RED_LED_PDIR |= RED_LED_BIT; // Set Red LED pin as output
+
+    BUTTON_PDIR &= ~BUTTON_BIT;  // Set Button pin as input
+    BUTTON_PREN |= BUTTON_BIT;   // Enable pull-up/down resistor
+    BUTTON_POUT |= BUTTON_BIT;   // Set pull-up resistor
+}
+
+int main(void){
+    init();
+    int count = 0; //counter for switch statements
+
+    while(1){
+        if(buttonPressed_Debounced()){
+            switch(count) {
+                case 0:
+                    setGreenLED(true);
+                    setRedLED(false);
+                    break;
+                case 1:
+                    setGreenLED(false);
+                    setRedLED(true);
+                    break;
+                case 2:
+                    setGreenLED(true);
+                    setRedLED(true);
+                    break;
+                default:
+                    break;
+            }
+            count = (count + 1) % 3;
+
+            // Wait until the button is released
+            while(buttonPressed());
+        }
+    }
+}
