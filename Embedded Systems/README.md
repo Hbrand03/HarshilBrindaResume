@@ -1,1 +1,1 @@
-
+This folder contains code for labs from Embedded Systems, which used the MSP-EXP430G2ET microcontroller along with sensors and components on a small breadboard. Programmed using Code Composer Studio using C/C++, this was used for labs which had different functionalities.
