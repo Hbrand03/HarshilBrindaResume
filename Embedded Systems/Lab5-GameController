@@ -1,0 +1,105 @@
+/**
+ * Name: Harshil Brinda
+ * Date: 8/5/2024
+ * Assignment: Lab 5 Game Controller
+ * YouTube: https://youtu.be/7xikGuUISiM
+ *
+ * Description: The code configures an MSP430 microcontroller
+ * to read analog values from a potentiometer and digital
+ * inputs from a button, then sends these values via UART
+ * to control a game. The potentiometer sensitivity is reduced
+ * through averaging and scaling to ensure smoother control input.
+ */
+
+#include <msp430.h>
+#include <stdint.h>
+#include <stdbool.h>
+
+void initUART(void);
+void initADC(void);
+void initButton(void);
+void uartWrite(uint8_t data);
+unsigned char readADCValue(void);
+bool isButtonPressed(void);
+void delay_ms(uint16_t ms);
+
+int main(void) {
+    WDTCTL = WDTPW + WDTHOLD;
+    BCSCTL1 = CALBC1_1MHZ;
+    DCOCTL = CALDCO_1MHZ;
+
+    initUART();
+    initADC();
+    initButton();
+
+    while (1) {
+        if (isButtonPressed()) {
+            uartWrite(255);
+            while (isButtonPressed());
+        } else {
+            unsigned char adcValue = readADCValue();
+            if (adcValue != 255) {
+                uartWrite(adcValue);
+            }
+        }
+        __delay_cycles(10000);
+    }
+}
+
+bool isButtonPressed(void) {
+    if ((P1IN & BIT3) == 0x00) {
+        __delay_cycles(1000);
+        if ((P1IN & BIT3) == 0x00) {
+            return true;
+        }
+    }
+    return false;
+}
+
+unsigned char readADCValue(void) {
+    unsigned int adcResult = 0;
+    unsigned char i;
+    for (i = 0; i < 16; i++) {
+        ADC10CTL0 |= ENC + ADC10SC;
+        while (ADC10CTL1 & ADC10BUSY);
+        adcResult += ADC10MEM;
+        __delay_cycles(1000);
+    }
+    adcResult /= 16;
+    return (unsigned char)((adcResult >> 2) * 0.8);
+}
+
+void initUART(void) {
+    P1SEL = BIT1 + BIT2;
+    P1SEL2 = BIT1 + BIT2;
+
+    UCA0CTL1 = UCSSEL_2;
+    UCA0BR0 = 104;
+    UCA0BR1 = 0;
+    UCA0MCTL = UCBRS0;
+    UCA0CTL1 &= ~UCSWRST;
+    IE2 |= UCA0RXIE;
+}
+
+void initADC(void) {
+    ADC10AE0 |= BIT1;
+    ADC10CTL1 = INCH_1;
+    ADC10CTL0 = SREF_0 + ADC10SHT_3 + ADC10ON;
+}
+
+void initButton(void) {
+    P1DIR &= ~BIT3;
+    P1REN |= BIT3;
+    P1OUT |= BIT3;
+}
+
+void uartWrite(uint8_t data) {
+    while (!(IFG2 & UCA0TXIFG));
+    UCA0TXBUF = data;
+}
+
+void delay_ms(uint16_t ms) {
+    while (ms--) {
+        __delay_cycles(1000);
+    }
+}
