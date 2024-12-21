@@ -1,0 +1,8 @@
+student,Xavier,Cato,900111222,CS,3.5,75
+student,Kathrine,Johnson,900,CS,4.0,100
+student,Roy,Clay,901,Biology,3.2,85
+student,Kimberly,Bryant,902,Electrical Engineering,3.0,80
+professor,Mary,Castro,300,CS,80000.0
+professor,Frank,Black,801,Math,85000.0
+student,Grace,Maxeem,903,Psychology,3.4,95
+professor,Kayla,Wilson,301,CS,95000.0
