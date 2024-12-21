@@ -1,0 +1,219 @@
+/**
+ * Name: Harshil Brinda
+ * Date: July 1, 2024
+ * Assignment: Lab 3
+ * YouTube: https://youtu.be/XahdKu_Ihl0
+ *
+ * This program:
+ * This code implements a miniature version of the arcade game "Cyclone" using an MSP430 microcontroller,
+ * where a single LED moves back and forth along a row of LEDs, and the player presses a button to stop the LED,
+ * aiming to stop it on the center LED for a win. The game is controlled by a state machine, with states for idle,
+ * moving left and right, winning, and losing, and uses an interrupt to handle button presses for better responsiveness.
+ */
+
+#include <msp430.h>
+#include <stdint.h>
+#include <stdbool.h>
+
+// LED Positions
+#define LED1 BIT0
+#define LED2 BIT1
+#define LED3 BIT2
+#define LED4 BIT3
+#define LED5 BIT4
+#define LED6 BIT5
+#define LED7 BIT6
+
+// Button
+#define BUTTON BIT3
+
+// States
+typedef enum {
+    IDLE,
+    MOVE_RIGHT,
+    MOVE_LEFT,
+    WIN,
+    LOSE
+} state_t;
+
+// Global variables
+volatile bool buttonPressed = false;
+uint8_t ledPosition = 0;
+bool gameDirection = true;  // true for right, false for left
+
+void initGPIO() {
+    // Stop watchdog timer
+    WDTCTL = WDTPW | WDTHOLD;
+
+    // Set LEDs as outputs
+    P2DIR |= LED1 + LED2 + LED3 + LED4 + LED5 + LED6;
+    P1DIR |= LED7;
+
+    // Initialize all LEDs to off
+    P2OUT &= ~(LED1 + LED2 + LED3 + LED4 + LED5 + LED6);
+    P1OUT &= ~LED7;
+
+    // Set button as input with pull-up resistor
+    P1DIR &= ~BUTTON;
+    P1REN |= BUTTON;
+    P1OUT |= BUTTON;
+    P1IES |= BUTTON;  // Interrupt on falling edge
+    P1IE |= BUTTON;   // Enable interrupt
+    P1IFG &= ~BUTTON; // Clear interrupt flag
+}
+
+void startGame() {
+    // Reset the game state
+    ledPosition = 0;
+    gameDirection = true;
+    buttonPressed = false;
+}
+
+void delay() {
+    __delay_cycles(100000);
+}
+
+void displayWinPattern() {
+    int i;
+    for (i = 0; i < 10; i++) {
+        P2OUT ^= LED4;  // Toggle the center LED
+        delay();
+    }
+}
+
+void updateLEDs() {
+    // Turn off all LEDs
+    P2OUT &= ~(LED1 + LED2 + LED3 + LED4 + LED5 + LED6);
+    P1OUT &= ~LED7;
+
+    // Turn on the current LED
+    switch (ledPosition) {
+        case 0:
+            P2OUT |= LED1;
+            break;
+        case 1:
+            P2OUT |= LED2;
+            break;
+        case 2:
+            P2OUT |= LED3;
+            break;
+        case 3:
+            P2OUT |= LED4;
+            break;
+        case 4:
+            P2OUT |= LED5;
+            break;
+        case 5:
+            P2OUT |= LED6;
+            break;
+        case 6:
+            P1OUT |= LED7;
+            break;
+    }
+}
+
+state_t runIdleState() {
+    if (buttonPressed) {
+        buttonPressed = false;
+        return MOVE_RIGHT;
+    }
+    return IDLE;
+}
+
+state_t runMoveRightState() {
+    if (buttonPressed) {
+        buttonPressed = false;
+        if (ledPosition == 3) {
+            return WIN;
+        }
+        return LOSE;
+    }
+
+    if (ledPosition < 6) {
+        ledPosition++;
+    } else {
+        return MOVE_LEFT;
+    }
+
+    updateLEDs();
+    delay();
+    return MOVE_RIGHT;
+}
+
+state_t runMoveLeftState() {
+    if (buttonPressed) {
+        buttonPressed = false;
+        if (ledPosition == 3) {
+            return WIN;
+        }
+        return LOSE;
+    }
+
+    if (ledPosition > 0) {
+        ledPosition--;
+    } else {
+        return MOVE_RIGHT;
+    }
+
+    updateLEDs();
+    delay();
+    return MOVE_LEFT;
+}
+
+state_t runWinState() {
+    displayWinPattern();
+    if (buttonPressed) {
+        buttonPressed = false;
+        return IDLE;
+    }
+    return WIN;
+}
+
+state_t runLoseState() {
+    if (buttonPressed) {
+        buttonPressed = false;
+        return IDLE;
+    }
+    return LOSE;
+}
+
+void main() {
+    WDTCTL = WDTPW | WDTHOLD;  // Stop watchdog timer
+    initGPIO();
+    __enable_interrupt();  // Enable global interrupts
+
+    state_t currentState = IDLE;
+    state_t nextState = IDLE;
+
+    while (1) {
+        switch (currentState) {
+            case IDLE:
+                nextState = runIdleState();
+                break;
+            case MOVE_RIGHT:
+                nextState = runMoveRightState();
+                break;
+            case MOVE_LEFT:
+                nextState = runMoveLeftState();
+                break;
+            case WIN:
+                nextState = runWinState();
+                break;
+            case LOSE:
+                nextState = runLoseState();
+                break;
+            default:
+                nextState = IDLE;
+                break;
+        }
+        currentState = nextState;
+    }
+}
+
+// Button interrupt service routine
+#pragma vector=PORT1_VECTOR
+__interrupt void Port_1(void) {
+    P1IFG &= ~BUTTON;  // Clear interrupt flag
+    buttonPressed = true;
+    __delay_cycles(50000);  // Simple debounce
+}
