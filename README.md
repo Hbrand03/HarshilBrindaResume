@@ -1,2 +1,2 @@
 # HarshilBrindaResume
-All complete programs and projects in Python
+All complete programs and projects in Python.
